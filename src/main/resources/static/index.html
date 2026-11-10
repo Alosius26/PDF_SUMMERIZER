@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI PDF Summarizer</title>
+    <link rel="icon" type="image/png" href="/favicon.png?v=1">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=1">
+    <link rel="apple-touch-icon" href="/favicon.png?v=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at 85% 5%, rgba(139, 92, 246, 0.12), transparent 38%),
+                        radial-gradient(circle at 10% 90%, rgba(99, 102, 241, 0.08), transparent 40%),
+                        #f5f6fb;
+        }
+        .drag-active {
+            border-color: #6d28d9 !important;
+            background-color: #f3f0ff !important;
+        }
+        .brand-gradient {
+            background: linear-gradient(135deg, #5b46f6 0%, #7c3aed 100%);
+        }
+        .brand-text-gradient {
+            background: linear-gradient(135deg, #5b46f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-wave-bg {
+            background: linear-gradient(125deg, rgba(255,255,255,0.92) 0%, rgba(237, 233, 254, 0.68) 65%, rgba(224, 231, 255, 0.85) 100%);
+        }
+        @keyframes pdfFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        @keyframes sparkleTwinkle {
+            0%, 100% { opacity: 0.35; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.12); }
+        }
+        @keyframes dotBounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+            40% { transform: translateY(-5px); opacity: 1; }
+        }
+        @keyframes lineShimmer {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        .loader-pdf-card {
+            animation: pdfFloat 2.4s ease-in-out infinite;
+        }
+        .loader-sparkle-1 {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: sparkleTwinkle 1.8s ease-in-out infinite;
+        }
+        .loader-sparkle-2 {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: sparkleTwinkle 1.8s ease-in-out 0.6s infinite;
+        }
+        .loader-sparkle-3 {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: sparkleTwinkle 1.8s ease-in-out 1.2s infinite;
+        }
+        .loader-dot-1 { animation: dotBounce 1.2s ease-in-out 0s infinite; }
+        .loader-dot-2 { animation: dotBounce 1.2s ease-in-out 0.2s infinite; }
+        .loader-dot-3 { animation: dotBounce 1.2s ease-in-out 0.4s infinite; }
+        .loader-scan-line { animation: lineShimmer 1.6s ease-in-out infinite; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen antialiased">
+
+    <div id="appShell" class="hidden min-h-screen flex">
+        <!-- Mobile Sidebar Backdrop -->
+        <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-40 hidden lg:hidden"></div>
+
+        <!-- Left Sidebar -->
+        <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-white/95 backdrop-blur-md border-r border-slate-200/80 flex flex-col justify-between p-5 transition-transform duration-200 -translate-x-full lg:translate-x-0 flex-shrink-0">
+            <div>
+                <!-- Brand -->
+                <div class="flex items-center justify-between mb-8 px-1">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                            <i data-lucide="file-text" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-slate-900 leading-tight">AI PDF Summarizer</div>
+                            <div class="text-[11px] text-slate-500">Powered by TRIOS</div>
+                        </div>
+                    </div>
+                    <button type="button" id="closeSidebarBtn" class="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="space-y-1.5" id="sidebarNav">
+                    <button type="button" data-view="home" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold brand-gradient text-white shadow-md shadow-indigo-200/80 transition">
+                        <i data-lucide="home" class="w-4 h-4"></i>
+                        <span>Home</span>
+                    </button>
+                    <button type="button" id="openChatSidebarBtn" disabled title="Upload a PDF document first" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 opacity-50 cursor-not-allowed transition">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="bot" class="w-4 h-4 text-indigo-600"></i>
+                            <span>Chat with PDF</span>
+                        </span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">AI</span>
+                    </button>
+                    <button type="button" data-view="history" class="nav-item w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="history" class="w-4 h-4"></i>
+                            <span>History</span>
+                        </span>
+                        <span id="historyCountBadge" class="hidden text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">0</span>
+                    </button>
+                    <button type="button" data-view="saved" class="nav-item w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="bookmark" class="w-4 h-4"></i>
+                            <span>Saved Summaries</span>
+                        </span>
+                        <span id="savedCountBadge" class="hidden text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">0</span>
+                    </button>
+                    <button type="button" data-view="settings" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Sidebar Bottom Card -->
+            <div class="relative overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/90 via-violet-50/90 to-white p-4 shadow-xs">
+                <div class="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-violet-200/40 blur-xl pointer-events-none"></div>
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                        <i data-lucide="crown" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <span class="text-sm font-bold text-slate-900">Upgrade to Pro</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-relaxed mb-3">
+                    Unlock larger files, more formats, and advanced AI models.
+                </p>
+                <button type="button" id="upgradeBtn" class="w-full py-2 px-3 rounded-xl brand-gradient text-white text-xs font-semibold shadow-sm hover:opacity-95 transition flex items-center justify-center gap-1.5">
+                    <span>Upgrade Now</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="flex-1 min-w-0 flex flex-col">
+            <!-- Top Utility Row + Hero -->
+            <div class="hero-wave-bg border-b border-slate-200/70 relative overflow-hidden">
+                <!-- Decorative soft wave -->
+                <svg class="absolute right-0 bottom-0 h-full w-1/2 pointer-events-none opacity-60" viewBox="0 0 600 180" fill="none" preserveAspectRatio="none">
+                    <path d="M120 180C220 110 310 140 420 70C500 20 560 10 600 0V180H120Z" fill="url(#heroWaveGrad)"/>
+                    <defs>
+                        <linearGradient id="heroWaveGrad" x1="120" y1="0" x2="600" y2="180" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#EDE9FE" stop-opacity="0.2"/>
+                            <stop offset="1" stop-color="#C4B5FD" stop-opacity="0.55"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+
+                <div class="max-w-6xl mx-auto px-4 sm:px-8 pt-4 pb-6 relative z-10">
+                    <!-- Top Action Bar -->
+                    <div class="flex items-center justify-between lg:justify-end gap-3 mb-2">
+                        <button type="button" id="openSidebarBtn" class="lg:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-700 shadow-xs">
+                            <i data-lucide="menu" class="w-5 h-5"></i>
+                        </button>
+
+                        <div class="flex items-center gap-3 relative">
+                            <button type="button" id="notifBtn" class="relative w-9 h-9 rounded-full bg-white border border-slate-200/90 text-slate-600 hover:text-indigo-600 flex items-center justify-center shadow-xs transition" title="Notifications">
+                                <i data-lucide="bell" class="w-4 h-4"></i>
+                                <span id="notifDot" class="hidden absolute top-2 right-2 w-2 h-2 rounded-full bg-indigo-600"></span>
+                            </button>
+
+                            <!-- Signed Out Button -->
+                            <button type="button" id="openAuthBtn" class="inline-flex items-center gap-2 px-4 py-2 rounded-full brand-gradient text-white text-xs font-semibold shadow-sm hover:opacity-95 transition">
+                                <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                                <span>Sign In / Register</span>
+                            </button>
+
+                            <!-- Signed In Profile Pill -->
+                            <div id="userMenuWrapper" class="hidden relative">
+                                <button type="button" id="userMenuBtn" class="inline-flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full bg-white border border-slate-200/90 shadow-xs hover:border-indigo-200 transition">
+                                    <span id="userAvatarBadge" class="w-7 h-7 rounded-full brand-gradient text-white text-xs font-bold flex items-center justify-center">U</span>
+                                    <span id="userDisplayName" class="text-xs font-semibold text-slate-700 hidden sm:inline">User</span>
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                                </button>
+                                <div id="userDropdown" class="hidden absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl py-2 z-50">
+                                    <div class="px-4 py-2 border-b border-slate-100">
+                                        <p id="dropdownName" class="text-xs font-bold text-slate-900 truncate"></p>
+                                        <p id="dropdownEmail" class="text-[11px] text-slate-500 truncate"></p>
+                                    </div>
+                                    <button type="button" id="dropdownSettingsBtn" class="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                        <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-600"></i> Profile &amp; Preferences
+                                    </button>
+                                    <button type="button" id="logoutBtn" class="w-full text-left px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+                                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign Out
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hero Content -->
+                    <div class="flex items-center justify-between gap-6">
+                        <div class="max-w-xl">
+                            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                                AI PDF <span class="brand-text-gradient">Summarizer</span>
+                            </h1>
+                            <p class="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                                Turn long documents into clear, concise, and actionable summaries with the power of AI.
+                            </p>
+                        </div>
+
+                        <!-- Inline SVG Illustration (PDF + AI Assistant Bot) -->
+                        <div class="hidden md:flex items-center pr-4 shrink-0" aria-hidden="true">
+                            <svg width="210" height="96" viewBox="0 0 210 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Document Card -->
+                                <rect x="26" y="10" width="66" height="78" rx="10" fill="white" stroke="#DDD6FE" stroke-width="1.5"/>
+                                <path d="M40 28H78M40 38H74M40 48H68" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round"/>
+                                <rect x="14" y="48" width="44" height="22" rx="6" fill="url(#pdfBadgeGrad)"/>
+                                <text x="36" y="63" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Plus Jakarta Sans, sans-serif">PDF</text>
+                                <!-- Sparkles -->
+                                <path d="M116 20L118.5 26.5L125 29L118.5 31.5L116 38L113.5 31.5L107 29L113.5 26.5L116 20Z" fill="#8B5CF6"/>
+                                <circle cx="102" cy="18" r="2.5" fill="#A78BFA"/>
+                                <!-- Friendly Bot -->
+                                <line x1="158" y1="12" x2="158" y2="21" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round"/>
+                                <circle cx="158" cy="10" r="3.5" fill="#7C3AED"/>
+                                <rect x="135" y="21" width="46" height="34" rx="14" fill="white" stroke="#C4B5FD" stroke-width="1.5"/>
+                                <rect x="143" y="29" width="30" height="18" rx="7" fill="#1E1B4B"/>
+                                <circle cx="152" cy="38" r="2.8" fill="#38BDF8"/>
+                                <circle cx="164" cy="38" r="2.8" fill="#38BDF8"/>
+                                <path d="M142 61C142 56.5817 145.582 53 150 53H166C170.418 53 174 56.5817 174 61V75C174 80.5228 169.523 85 164 85H152C146.477 85 142 80.5228 142 75V61Z" fill="white" stroke="#C4B5FD" stroke-width="1.5"/>
+                                <circle cx="158" cy="68" r="5" fill="#EDE9FE" stroke="#7C3AED" stroke-width="1.5"/>
+                                <path d="M126 52C123 47 127 42 132 45L139 54" stroke="#6366F1" stroke-width="5" stroke-linecap="round"/>
+                                <path d="M175 61L184 68" stroke="#A5B4FC" stroke-width="5" stroke-linecap="round"/>
+                                <defs>
+                                    <linearGradient id="pdfBadgeGrad" x1="14" y1="48" x2="58" y2="70" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#4F46E5"/>
+                                        <stop offset="1" stop-color="#7C3AED"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Container -->
+            <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-8 py-6 space-y-6">
+
+                <!-- VIEW: HOME -->
+                <section id="view-home" class="space-y-6">
+                    <!-- Upload & Summary Format Split Card -->
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                            <!-- Left Dropzone -->
+                            <div class="lg:col-span-5">
+                                <div id="dropZone" class="h-full border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-xl p-6 text-center cursor-pointer transition bg-indigo-50/20 hover:bg-indigo-50/40 flex flex-col items-center justify-center">
+                                    <input type="file" id="fileInput" accept=".pdf" class="hidden" />
+                                    <div class="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2.5">
+                                        <i data-lucide="cloud-upload" class="w-6 h-6"></i>
+                                    </div>
+                                    <p class="text-sm font-bold text-slate-900">Upload PDF Document</p>
+                                    <p class="text-xs text-slate-500 mt-1 mb-3">Drag &amp; drop your PDF here or click to browse</p>
+                                    <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-indigo-700 shadow-xs hover:bg-slate-50 transition">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Choose File
+                                    </span>
+                                    <p class="text-[11px] text-slate-400 mt-3">Supports PDF &bull; Max size: 50 MB</p>
+                                </div>
+                            </div>
+
+                            <!-- Right File Info + Format + Summarize -->
+                            <div class="lg:col-span-7 flex flex-col justify-between gap-4">
+                                <!-- Selected File Box -->
+                                <div id="filePlaceholder" class="p-4 rounded-xl border border-slate-200/90 bg-slate-50/70 flex items-center gap-3 text-slate-500">
+                                    <div class="w-10 h-10 rounded-lg bg-slate-200/70 text-slate-400 flex items-center justify-center font-bold text-xs shrink-0">
+                                        PDF
+                                    </div>
+                                    <div class="text-xs">
+                                        <p class="font-semibold text-slate-700">No PDF selected yet</p>
+                                        <p class="text-slate-400 mt-0.5">Choose or drag a PDF document on the left to start.</p>
+                                    </div>
+                                </div>
+
+                                <div id="fileInfo" class="hidden p-4 rounded-xl border border-slate-200/90 bg-slate-50/70 flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-10 h-10 rounded-lg bg-rose-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                                            PDF
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p id="fileName" class="text-sm font-semibold text-slate-900 truncate"></p>
+                                            <p id="fileSize" class="text-xs text-slate-500 mt-0.5"></p>
+                                        </div>
+                                    </div>
+                                    <button type="button" id="removeFileBtn" class="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition shrink-0" title="Remove file">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Summary Format & Summarize Button Row -->
+                                <div class="flex flex-wrap items-end justify-between gap-4 pt-1">
+                                    <div class="space-y-2">
+                                        <span class="block text-xs font-semibold text-slate-700">Summary Format:</span>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <button type="button" class="type-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-xs transition" data-type="paragraph">
+                                                <i data-lucide="align-left" class="w-3.5 h-3.5"></i>
+                                                <span>Paragraph Only</span>
+                                            </button>
+                                            <button type="button" class="type-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition" data-type="bullets">
+                                                <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                                                <span>Bullets Only</span>
+                                            </button>
+                                            <button type="button" class="type-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition" data-type="both">
+                                                <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                                                <span>Both (Paragraph &amp; Bullets)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button type="button" id="summarizeBtn" disabled
+                                            class="px-6 py-2.5 rounded-xl font-semibold text-sm text-white brand-gradient hover:opacity-95 disabled:opacity-45 disabled:cursor-not-allowed shadow-md shadow-indigo-200 transition flex items-center gap-2 ml-auto">
+                                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                        <span>Summarize PDF</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Banner -->
+                        <div id="errorAlert" class="hidden mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-3">
+                            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
+                            <div class="flex-1" id="errorMessage"></div>
+                            <button type="button" onclick="document.getElementById('errorAlert').classList.add('hidden')" class="text-rose-400 hover:text-rose-600">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Processing State -->
+                    <div id="processingCard" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8 text-center">
+                        <div class="flex flex-col items-center justify-center mb-3">
+                            <svg width="210" height="210" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Processing PDF">
+                                <!-- Outer concentric lavender circles -->
+                                <circle cx="110" cy="106" r="84" fill="#F2F1FD"/>
+                                <circle cx="110" cy="106" r="64" fill="#F8F7FE"/>
+
+                                <!-- Soft card shadow -->
+                                <rect x="74" y="48" width="76" height="98" rx="14" fill="#DDD6FE" opacity="0.55"/>
+
+                                <!-- Floating PDF document card -->
+                                <g class="loader-pdf-card">
+                                    <rect x="70" y="42" width="76" height="98" rx="14" fill="white" stroke="#C7D2FE" stroke-width="2"/>
+                                    <!-- Top purple gradient bar -->
+                                    <rect x="81" y="53" width="54" height="7" rx="3.5" fill="url(#loaderTopBarGrad)"/>
+                                    <!-- Document content lines -->
+                                    <rect x="81" y="70" width="54" height="5" rx="2.5" fill="#CBD5E1" class="loader-scan-line"/>
+                                    <rect x="81" y="81" width="54" height="5" rx="2.5" fill="#CBD5E1"/>
+                                    <rect x="81" y="92" width="54" height="5" rx="2.5" fill="#CBD5E1" class="loader-scan-line"/>
+                                    <rect x="81" y="103" width="54" height="5" rx="2.5" fill="#CBD5E1"/>
+                                    <rect x="81" y="114" width="54" height="5" rx="2.5" fill="#CBD5E1" class="loader-scan-line"/>
+                                    <rect x="81" y="125" width="32" height="5" rx="2.5" fill="#CBD5E1"/>
+
+                                    <!-- Red/Pink PDF Pill Badge -->
+                                    <rect x="59" y="101" width="34" height="16" rx="5" fill="#F43F5E"/>
+                                    <text x="76" y="112.5" text-anchor="middle" fill="white" font-size="9" font-weight="700" letter-spacing="0.8" font-family="Plus Jakarta Sans, sans-serif">PDF</text>
+                                </g>
+
+                                <!-- Twinkling 4-point sparkles -->
+                                <path class="loader-sparkle-1" d="M62 79L63.8 83.2L68 85L63.8 86.8L62 91L60.2 86.8L56 85L60.2 83.2L62 79Z" fill="#8B5CF6"/>
+                                <path class="loader-sparkle-2" d="M61 116L63.6 122.4L70 125L63.6 127.6L61 134L58.4 127.6L52 125L58.4 122.4L61 116Z" fill="#7C3AED"/>
+                                <path class="loader-sparkle-3" d="M174 92L176.2 97.8L182 100L176.2 102.2L174 108L171.8 102.2L166 100L171.8 97.8L174 92Z" fill="#6D28D9"/>
+
+                                <!-- Bottom 3 animated purple dots -->
+                                <circle cx="95" cy="189" r="4.5" fill="#5B46F6" class="loader-dot-1"/>
+                                <circle cx="110" cy="189" r="4.5" fill="#7C3AED" class="loader-dot-2"/>
+                                <circle cx="125" cy="189" r="4.5" fill="#8B5CF6" class="loader-dot-3"/>
+
+                                <defs>
+                                    <linearGradient id="loaderTopBarGrad" x1="81" y1="53" x2="135" y2="60" gradientUnits="userSpaceOnUse">
+                                        <stop stop-color="#4F46E5"/>
+                                        <stop offset="1" stop-color="#7C3AED"/>
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900" id="processingTitle">Processing your PDF...</h3>
+                        <p class="text-xs text-slate-500 mt-1.5 max-w-md mx-auto leading-relaxed" id="processingSubtitle">
+                            Extracting document pages and generating your AI summary. This may take a few seconds depending on document length.
+                        </p>
+                    </div>
+
+                    <!-- Results & Insights Grid -->
+                    <div id="resultsWrapper" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        <!-- Left: Summary Results Card -->
+                        <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                            <!-- Header -->
+                            <div class="p-5 sm:p-6 border-b border-slate-100">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h2 class="text-base font-bold text-slate-900">Summary Results</h2>
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    Completed <i data-lucide="check" class="w-3 h-3"></i>
+                                                </span>
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-0.5 truncate max-w-sm" id="resDocName"></p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Export / Bookmark Buttons -->
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <button type="button" id="saveBookmarkBtn" class="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs" title="Save summary">
+                                            <i data-lucide="bookmark" id="saveBookmarkIcon" class="w-3.5 h-3.5"></i>
+                                            <span id="saveBookmarkLabel">Save</span>
+                                        </button>
+                                        <button type="button" id="copyAllBtn" class="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs">
+                                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> <span>Copy All</span>
+                                        </button>
+                                        <button type="button" id="downloadMdBtn" class="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs">
+                                            <i data-lucide="download" class="w-3.5 h-3.5"></i> <span>Download (.md)</span>
+                                        </button>
+                                        <button type="button" id="shareBtn" class="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs">
+                                            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> <span>Share</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Stats Pills -->
+                                <div class="mt-4 flex flex-wrap gap-2 text-xs">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700">
+                                        <i data-lucide="book-open" class="w-3.5 h-3.5 text-indigo-500"></i> <span id="metaPages">0 Pages</span>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700">
+                                        <i data-lucide="type" class="w-3.5 h-3.5 text-indigo-500"></i> <span id="metaWords">0 Words</span>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700">
+                                        <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-500"></i> <span id="metaChunks">0 Chunks</span>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-700">
+                                        <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-500"></i> <span id="metaTime">0s</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Tabs & Inline Tools -->
+                            <div class="px-5 sm:px-6 pt-4 flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex flex-wrap items-center gap-1.5" id="resultTabs">
+                                    <button type="button" data-tab="summary" class="res-tab px-3.5 py-2 rounded-xl text-xs font-semibold brand-gradient text-white shadow-sm flex items-center gap-1.5 transition">
+                                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                                        <span>Executive Summary</span>
+                                    </button>
+                                    <button type="button" data-tab="bullets" class="res-tab px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+                                        <i data-lucide="list-checks" class="w-3.5 h-3.5"></i>
+                                        <span>Key Points</span>
+                                    </button>
+                                    <button type="button" data-tab="topics" class="res-tab px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+                                        <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+                                        <span>Topics</span>
+                                    </button>
+                                    <button type="button" data-tab="entities" class="res-tab px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+                                        <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                                        <span>Entities</span>
+                                    </button>
+                                    <button type="button" data-tab="qa" id="qaTabBtn" class="hidden res-tab px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
+                                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                                        <span>Q&amp;A</span>
+                                    </button>
+                                </div>
+
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" id="speakBtn" class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition" title="Listen (Text-to-speech)">
+                                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                                    </button>
+                                    <button type="button" id="copyCurrentTabBtn" class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition" title="Copy current tab">
+                                        <i data-lucide="copy" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tab Panels -->
+                            <div class="p-5 sm:p-6">
+                                <!-- Panel: Executive Summary -->
+                                <div id="panel-summary" class="res-panel rounded-xl border border-slate-200/80 bg-slate-50/40 p-5 space-y-5">
+                                    <div>
+                                        <h3 class="text-sm font-bold text-slate-900 pl-3 border-l-3 border-indigo-600 mb-3" style="border-left: 3px solid #5b46f6;">
+                                            Executive Paragraph Summary
+                                        </h3>
+                                        <div id="paragraphText" class="text-sm text-slate-700 leading-relaxed"></div>
+                                        <div id="noParaNotice" class="hidden text-xs text-slate-500 py-4 flex flex-wrap items-center justify-between gap-3">
+                                            <span>Paragraph summary was omitted because <strong>Bullets Only</strong> mode was selected.</span>
+                                            <button type="button" onclick="resummarizeWith('both')" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold hover:bg-indigo-100 transition">
+                                                Generate Both Formats
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="inlineBulletsSection" class="hidden pt-4 border-t border-slate-200/80">
+                                        <h3 class="text-sm font-bold text-slate-900 pl-3 mb-3" style="border-left: 3px solid #5b46f6;">
+                                            Key Takeaways &amp; Bullet Points
+                                        </h3>
+                                        <ul id="inlineBulletsList" class="space-y-2.5"></ul>
+                                    </div>
+                                </div>
+
+                                <!-- Panel: Key Points -->
+                                <div id="panel-bullets" class="res-panel hidden rounded-xl border border-slate-200/80 bg-slate-50/40 p-5">
+                                    <h3 class="text-sm font-bold text-slate-900 pl-3 mb-3" style="border-left: 3px solid #5b46f6;">
+                                        Key Takeaways &amp; Bullet Points
+                                    </h3>
+                                    <ul id="bulletsList" class="space-y-2.5"></ul>
+                                    <div id="noBulletsNotice" class="hidden text-xs text-slate-500 py-4 flex flex-wrap items-center justify-between gap-3">
+                                        <span>Bullet takeaways were not generated in <strong>Paragraph Only</strong> mode.</span>
+                                        <button type="button" onclick="resummarizeWith('both')" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold hover:bg-indigo-100 transition">
+                                            Generate Bullets Now
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Panel: Topics -->
+                                <div id="panel-topics" class="res-panel hidden rounded-xl border border-slate-200/80 bg-slate-50/40 p-5 space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-900 pl-3" style="border-left: 3px solid #5b46f6;">
+                                        Extracted Key Topics
+                                    </h3>
+                                    <div id="topicsContainer" class="flex flex-wrap gap-2"></div>
+                                </div>
+
+                                <!-- Panel: Entities -->
+                                <div id="panel-entities" class="res-panel hidden rounded-xl border border-slate-200/80 bg-slate-50/40 p-5 space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-900 pl-3" style="border-left: 3px solid #5b46f6;">
+                                        Key Entities &amp; Concepts
+                                    </h3>
+                                    <div id="entitiesContainer" class="flex flex-wrap gap-2"></div>
+                                </div>
+
+                                <!-- Panel: Q&A -->
+                                <div id="panel-qa" class="res-panel hidden rounded-xl border border-slate-200/80 bg-slate-50/40 p-5 space-y-3">
+                                    <h3 class="text-sm font-bold text-slate-900 pl-3" style="border-left: 3px solid #5b46f6;">
+                                        AI-Generated Q&amp;A
+                                    </h3>
+                                    <div id="qaContainer" class="space-y-3 text-sm text-slate-700"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Document Insights + Quick Actions -->
+                        <div class="lg:col-span-4 space-y-5">
+                            <!-- Document Insights -->
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+                                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+                                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-indigo-600"></i>
+                                    <span>Document Insights</span>
+                                </h3>
+                                <div class="space-y-3 text-xs">
+                                    <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                                        <span class="flex items-center gap-2 text-slate-500">
+                                            <i data-lucide="book-open" class="w-3.5 h-3.5 text-indigo-500"></i> Pages
+                                        </span>
+                                        <span id="insightPages" class="font-semibold text-slate-900">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                                        <span class="flex items-center gap-2 text-slate-500">
+                                            <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-500"></i> Words
+                                        </span>
+                                        <span id="insightWords" class="font-semibold text-slate-900">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between py-1 border-b border-slate-100">
+                                        <span class="flex items-center gap-2 text-slate-500">
+                                            <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-500"></i> Chunks
+                                        </span>
+                                        <span id="insightChunks" class="font-semibold text-slate-900">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-1">
+                                        <span class="flex items-center gap-2 text-slate-500">
+                                            <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-500"></i> Processing Time
+                                        </span>
+                                        <span id="insightTime" class="font-semibold text-slate-900">0s</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick Actions -->
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+                                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3.5">
+                                    <i data-lucide="zap" class="w-4 h-4 text-indigo-600"></i>
+                                    <span>Quick Actions</span>
+                                </h3>
+                                <div class="space-y-2.5">
+                                    <button type="button" id="qaActionBullets" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-indigo-50/60 hover:border-indigo-200 text-xs font-medium text-slate-700 transition">
+                                        <span class="flex items-center gap-2.5">
+                                            <i data-lucide="list" class="w-4 h-4 text-indigo-600"></i>
+                                            <span>View as Bullets</span>
+                                        </span>
+                                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                                    </button>
+                                    <button type="button" id="qaActionTopics" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-indigo-50/60 hover:border-indigo-200 text-xs font-medium text-slate-700 transition">
+                                        <span class="flex items-center gap-2.5">
+                                            <i data-lucide="tag" class="w-4 h-4 text-indigo-600"></i>
+                                            <span>Extract Key Topics</span>
+                                        </span>
+                                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                                    </button>
+                                    <button type="button" id="qaActionGenerateQA" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-indigo-50/60 hover:border-indigo-200 text-xs font-medium text-slate-700 transition">
+                                        <span class="flex items-center gap-2.5">
+                                            <i data-lucide="message-square" class="w-4 h-4 text-indigo-600"></i>
+                                            <span id="qaActionLabel">Generate Q&amp;A</span>
+                                        </span>
+                                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: HISTORY -->
+                <section id="view-history" class="hidden space-y-4">
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Summary History</h2>
+                                <p class="text-xs text-slate-500 mt-0.5">Recent documents summarized in this browser.</p>
+                            </div>
+                            <button type="button" id="clearHistoryBtn" class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
+                                Clear History
+                            </button>
+                        </div>
+                        <div id="historyList" class="space-y-3"></div>
+                    </div>
+                </section>
+
+                <!-- VIEW: SAVED SUMMARIES -->
+                <section id="view-saved" class="hidden space-y-4">
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="mb-4">
+                            <h2 class="text-base font-bold text-slate-900">Saved Summaries</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Bookmarked summaries kept for quick reference.</p>
+                        </div>
+                        <div id="savedList" class="space-y-3"></div>
+                    </div>
+                </section>
+
+                <!-- VIEW: SETTINGS -->
+                <section id="view-settings" class="hidden space-y-4">
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Profile &amp; Preferences</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Manage your account details and default summarization settings.</p>
+                        </div>
+
+                        <div id="settingsProfileSection" class="hidden space-y-4 py-3 border-t border-slate-100">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                                    <input type="text" id="settingsFullName" class="w-full text-xs rounded-xl border border-slate-200 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                                    <input type="email" id="settingsEmail" disabled class="w-full text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-500 px-3 py-2" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-4 py-3 border-t border-slate-100">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800">Default Summary Format</p>
+                                <p class="text-xs text-slate-500">Select which format is pre-selected when opening Home.</p>
+                            </div>
+                            <select id="defaultFormatSelect" class="text-xs font-medium rounded-xl border border-slate-200 px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="paragraph">Paragraph Only</option>
+                                <option value="bullets">Bullets Only</option>
+                                <option value="both">Both (Paragraph &amp; Bullets)</option>
+                            </select>
+                        </div>
+
+                        <div id="saveProfileRow" class="hidden pt-2 flex justify-end">
+                            <button type="button" id="saveProfileBtn" class="px-5 py-2 rounded-xl brand-gradient text-white text-xs font-semibold shadow-sm hover:opacity-95 transition">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Floating Right-Side AI Chat with PDF Icon (enabled after uploading/opening a PDF) -->
+    <button type="button" id="floatingAiChatBtn"
+            class="hidden fixed bottom-6 right-6 z-40 group flex items-center gap-2.5 pl-3.5 pr-4 py-3 rounded-full brand-gradient text-white shadow-xl shadow-indigo-300/60 hover:scale-105 active:scale-95 transition-all duration-200"
+            title="Chat with PDF using AI">
+        <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <i data-lucide="bot" class="w-4 h-4"></i>
+        </span>
+        <span class="text-xs font-bold tracking-wide hidden sm:inline">Chat with PDF</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+    </button>
+
+    <!-- Slide-Over AI Chat with PDF Drawer -->
+    <div id="chatBackdrop" class="hidden fixed inset-0 bg-slate-900/35 backdrop-blur-xs z-50"></div>
+    <aside id="chatDrawer" class="fixed top-0 right-0 z-50 h-screen w-full max-w-md bg-white border-l border-slate-200 shadow-2xl flex flex-col translate-x-full transition-transform duration-300">
+        <!-- Drawer Header -->
+        <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50/70 via-violet-50/60 to-white">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl brand-gradient text-white flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+                    <i data-lucide="bot" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <span>AI PDF Assistant</span>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">Chat</span>
+                    </h3>
+                    <p id="chatDocSubtitle" class="text-[11px] text-slate-500 truncate">Upload or summarize a PDF to start chatting</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" id="chatClearBtn" class="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-white transition" title="Clear chat">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+                <button type="button" id="closeChatBtn" class="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-white transition" title="Close">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Active PDF Context Bar -->
+        <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0 text-xs text-slate-600">
+                <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i>
+                <span id="chatActiveFileBadge" class="truncate font-medium">No PDF loaded</span>
+            </div>
+            <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 transition shrink-0">
+                <i data-lucide="upload" class="w-3 h-3"></i>
+                <span>Load PDF</span>
+                <input type="file" id="chatPdfInput" accept=".pdf" class="hidden" />
+            </label>
+        </div>
+
+        <!-- Messages Container -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/40">
+            <div class="p-4 rounded-2xl bg-white border border-indigo-100 text-xs text-slate-600 space-y-2.5 shadow-2xs">
+                <p class="font-semibold text-slate-800 flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600"></i> Ask anything about your PDF
+                </p>
+                <p class="leading-relaxed">Once a PDF is summarized or loaded above, ask follow-up questions, request clarifications, or explore specific sections.</p>
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                    <button type="button" class="chat-quick-prompt px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-medium hover:bg-indigo-100 transition">What is the main purpose?</button>
+                    <button type="button" class="chat-quick-prompt px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-medium hover:bg-indigo-100 transition">List key requirements</button>
+                    <button type="button" class="chat-quick-prompt px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-medium hover:bg-indigo-100 transition">Summarize in 3 lines</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form id="chatForm" class="p-3.5 border-t border-slate-100 bg-white flex items-center gap-2">
+            <input type="text" id="chatInput" placeholder="Ask a question about this PDF..."
+                   class="flex-1 text-xs sm:text-sm rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+            <button type="submit" id="chatSendBtn"
+                    class="px-4 py-2.5 rounded-xl brand-gradient text-white text-xs font-semibold shadow-sm hover:opacity-95 disabled:opacity-50 transition flex items-center gap-1.5">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                <span>Send</span>
+            </button>
+        </form>
+    </aside>
+
+    <!-- Auth Landing Page (Login / Register / Email OTP Verification) -->
+    <div id="authModal" class="min-h-screen flex items-center justify-center p-4 sm:p-8">
+        <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 bg-white rounded-3xl border border-slate-200/80 shadow-2xl overflow-hidden">
+            <!-- Left Welcome Panel -->
+            <div class="hidden md:flex md:col-span-5 flex-col justify-between p-8 text-white brand-gradient relative overflow-hidden">
+                <div class="absolute -bottom-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+                <div class="relative z-10 space-y-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <div class="text-base font-bold leading-tight">AI PDF Summarizer</div>
+                            <div class="text-[11px] text-indigo-100">Powered by TRIOS</div>
+                        </div>
+                    </div>
+                    <div class="space-y-2 pt-4">
+                        <h2 class="text-2xl font-extrabold leading-snug">Summarize &amp; Chat with any PDF in seconds.</h2>
+                        <p class="text-xs text-indigo-100 leading-relaxed">
+                            Generate executive paragraphs, bullet takeaways, Q&amp;A, and chat directly with your documents — saved securely to your account.
+                        </p>
+                    </div>
+                </div>
+                <div class="relative z-10 space-y-2.5 text-xs text-indigo-100 pt-8">
+                    <div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-300"></i> Email OTP verified accounts</div>
+                    <div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-300"></i> Saved summary history &amp; bookmarks</div>
+                    <div class="flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-300"></i> Interactive AI Chat with PDF</div>
+                </div>
+            </div>
+
+            <!-- Right Auth Form Panel -->
+            <div class="md:col-span-7 flex flex-col justify-center">
+                <div class="p-6 pb-4 border-b border-slate-100 flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl brand-gradient text-white flex items-center justify-center md:hidden">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 id="authModalTitle" class="text-lg font-bold text-slate-900">Sign In</h3>
+                        <p id="authModalSubtitle" class="text-xs text-slate-500">Access your AI PDF Summarizer workspace</p>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <!-- Auth Mode Tabs (Hidden on OTP step) -->
+                    <div id="authModeTabs" class="grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+                        <button type="button" id="tabLoginBtn" class="py-2 rounded-lg bg-white text-indigo-700 shadow-2xs transition">Sign In</button>
+                        <button type="button" id="tabRegisterBtn" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Register</button>
+                    </div>
+
+                    <!-- Alert Box -->
+                    <div id="authErrorBox" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs"></div>
+                    <div id="authInfoBox" class="hidden p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs"></div>
+
+                    <!-- Form: Login -->
+                    <form id="loginForm" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                            <input type="email" id="loginEmail" required placeholder="you@example.com" class="w-full text-sm rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                            <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full text-sm rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                        </div>
+                        <button type="submit" id="loginSubmitBtn" class="w-full py-2.5 rounded-xl brand-gradient text-white text-sm font-semibold shadow-md shadow-indigo-100 hover:opacity-95 transition">
+                            Sign In
+                        </button>
+                    </form>
+
+                    <!-- Form: Register -->
+                    <form id="registerForm" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                            <input type="text" id="regName" required placeholder="Alosius Gonzag" class="w-full text-sm rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                            <input type="email" id="regEmail" required placeholder="you@example.com" class="w-full text-sm rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Password (min 6 chars)</label>
+                            <input type="password" id="regPassword" required minlength="6" placeholder="••••••••" class="w-full text-sm rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                        </div>
+                        <button type="submit" id="registerSubmitBtn" class="w-full py-2.5 rounded-xl brand-gradient text-white text-sm font-semibold shadow-md shadow-indigo-100 hover:opacity-95 transition">
+                            Send Verification OTP
+                        </button>
+                    </form>
+
+                    <!-- Form: Email OTP Verification -->
+                    <form id="otpForm" class="hidden space-y-3">
+                        <p class="text-xs text-slate-600">
+                            Enter the 6-digit OTP sent to <strong id="otpEmailDisplay" class="text-slate-900"></strong>.
+                        </p>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">6-Digit Email OTP</label>
+                            <input type="text" id="otpCodeInput" required maxlength="6" pattern="\d{6}" inputmode="numeric" placeholder="123456" class="w-full text-center tracking-[0.4em] font-bold text-lg rounded-xl border border-slate-200 px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                        </div>
+                        <button type="submit" id="verifyOtpBtn" class="w-full py-2.5 rounded-xl brand-gradient text-white text-sm font-semibold shadow-md shadow-indigo-100 hover:opacity-95 transition">
+                            Verify Email &amp; Sign In
+                        </button>
+                        <div class="flex items-center justify-between pt-1 text-xs">
+                            <button type="button" id="backToAuthBtn" class="text-slate-500 hover:text-slate-800">&larr; Back</button>
+                            <button type="button" id="resendOtpBtn" class="text-indigo-600 font-semibold hover:underline">Resend OTP</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // State
+        let selectedFile = null;
+        let selectedSummaryType = localStorage.getItem('default_summary_type') || 'paragraph';
+        let lastResult = null;
+        let currentTab = 'summary';
+        let isSpeaking = false;
+        let authToken = localStorage.getItem('auth_token') || '';
+        let currentUser = null;
+        let pendingOtpEmail = '';
+        let chatContextText = '';
+        let chatDocName = '';
+        let chatHistory = [];
+        let chatExtractingPromise = null;
+
+        // Elements
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const filePlaceholder = document.getElementById('filePlaceholder');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileNameEl = document.getElementById('fileName');
+        const fileSizeEl = document.getElementById('fileSize');
+        const removeFileBtn = document.getElementById('removeFileBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const errorAlert = document.getElementById('errorAlert');
+        const errorMessage = document.getElementById('errorMessage');
+        const processingCard = document.getElementById('processingCard');
+        const resultsWrapper = document.getElementById('resultsWrapper');
+        const defaultFormatSelect = document.getElementById('defaultFormatSelect');
+        const authModal = document.getElementById('authModal');
+        const appShell = document.getElementById('appShell');
+        const chatDrawer = document.getElementById('chatDrawer');
+        const chatBackdrop = document.getElementById('chatBackdrop');
+        const chatMessagesEl = document.getElementById('chatMessages');
+        const chatInputEl = document.getElementById('chatInput');
+        const chatSendBtn = document.getElementById('chatSendBtn');
+        const openChatSidebarBtn = document.getElementById('openChatSidebarBtn');
+        const floatingAiChatBtn = document.getElementById('floatingAiChatBtn');
+
+        function authHeaders() {
+            return authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
+        }
+
+        // Clean legacy tokens
+        localStorage.removeItem('hf_api_key');
+        localStorage.removeItem('openrouter_api_key');
+
+        // Initialize summary format & session
+        defaultFormatSelect.value = selectedSummaryType;
+        setSummaryFormat(selectedSummaryType);
+        initSession();
+
+        async function initSession() {
+            if (!authToken) {
+                updateAuthUI();
+                updateSidebarBadges();
+                return;
+            }
+            try {
+                const res = await fetch('/api/auth/me', { headers: authHeaders() });
+                if (!res.ok) throw new Error('Session expired');
+                const data = await res.json();
+                setAuthenticatedUser(authToken, data.user);
+            } catch {
+                clearSession(false);
+            }
+        }
+
+        function setAuthenticatedUser(token, user) {
+            authToken = token;
+            currentUser = user;
+            localStorage.setItem('auth_token', token);
+            if (user && user.defaultSummaryFormat) {
+                localStorage.setItem('default_summary_type', user.defaultSummaryFormat);
+                defaultFormatSelect.value = user.defaultSummaryFormat;
+                setSummaryFormat(user.defaultSummaryFormat);
+            }
+            updateAuthUI();
+            refreshServerBadges();
+        }
+
+        function clearSession(notify = true) {
+            authToken = '';
+            currentUser = null;
+            selectedFile = null;
+            lastResult = null;
+            chatContextText = '';
+            chatDocName = '';
+            chatHistory = [];
+            localStorage.removeItem('auth_token');
+            resultsWrapper.classList.add('hidden');
+            fileInfo.classList.add('hidden');
+            filePlaceholder.classList.remove('hidden');
+            summarizeBtn.disabled = true;
+            closeChatDrawer();
+            updateChatAvailability();
+            updateAuthUI();
+            updateSidebarBadges();
+            if (notify) showToast('Signed out');
+        }
+
+        function updateAuthUI() {
+            const signedIn = Boolean(currentUser);
+            appShell.classList.toggle('hidden', !signedIn);
+            authModal.classList.toggle('hidden', signedIn);
+            document.getElementById('openAuthBtn').classList.toggle('hidden', signedIn);
+            document.getElementById('userMenuWrapper').classList.toggle('hidden', !signedIn);
+            document.getElementById('settingsProfileSection').classList.toggle('hidden', !signedIn);
+            document.getElementById('saveProfileRow').classList.toggle('hidden', !signedIn);
+
+            if (signedIn) {
+                document.getElementById('userAvatarBadge').textContent = currentUser.avatarInitials || 'U';
+                document.getElementById('userDisplayName').textContent = currentUser.fullName || currentUser.email;
+                document.getElementById('dropdownName').textContent = currentUser.fullName || '';
+                document.getElementById('dropdownEmail').textContent = currentUser.email || '';
+                document.getElementById('settingsFullName').value = currentUser.fullName || '';
+                document.getElementById('settingsEmail').value = currentUser.email || '';
+                lucide.createIcons();
+            } else {
+                showAuthMode('login');
+                lucide.createIcons();
+            }
+        }
+
+        // User Dropdown
+        document.getElementById('userMenuBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('userDropdown').classList.toggle('hidden');
+        });
+        document.addEventListener('click', () => {
+            document.getElementById('userDropdown').classList.add('hidden');
+        });
+        document.getElementById('dropdownSettingsBtn').addEventListener('click', () => {
+            document.getElementById('userDropdown').classList.add('hidden');
+            switchView('settings');
+        });
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            document.getElementById('userDropdown').classList.add('hidden');
+            clearSession(true);
+            switchView('home');
+        });
+
+        // Auth Modal Controls
+        function openAuthModal(mode = 'login') {
+            clearAuthAlerts();
+            showAuthMode(mode);
+            authModal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeAuthModal() {
+            authModal.classList.add('hidden');
+        }
+        function clearAuthAlerts() {
+            document.getElementById('authErrorBox').classList.add('hidden');
+            document.getElementById('authInfoBox').classList.add('hidden');
+        }
+        function showAuthError(msg) {
+            const box = document.getElementById('authErrorBox');
+            box.textContent = msg;
+            box.classList.remove('hidden');
+        }
+        function showAuthInfo(msg) {
+            const box = document.getElementById('authInfoBox');
+            box.textContent = msg;
+            box.classList.remove('hidden');
+        }
+        function showAuthMode(mode) {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const otpForm = document.getElementById('otpForm');
+            const modeTabs = document.getElementById('authModeTabs');
+            const tabLogin = document.getElementById('tabLoginBtn');
+            const tabReg = document.getElementById('tabRegisterBtn');
+
+            loginForm.classList.toggle('hidden', mode !== 'login');
+            registerForm.classList.toggle('hidden', mode !== 'register');
+            otpForm.classList.toggle('hidden', mode !== 'otp');
+            modeTabs.classList.toggle('hidden', mode === 'otp');
+
+            if (mode === 'login') {
+                document.getElementById('authModalTitle').textContent = 'Sign In';
+                document.getElementById('authModalSubtitle').textContent = 'Access your saved PDF summaries across sessions';
+                tabLogin.className = 'py-2 rounded-lg bg-white text-indigo-700 shadow-2xs transition';
+                tabReg.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
+            } else if (mode === 'register') {
+                document.getElementById('authModalTitle').textContent = 'Create Account';
+                document.getElementById('authModalSubtitle').textContent = 'Register with email OTP verification';
+                tabReg.className = 'py-2 rounded-lg bg-white text-indigo-700 shadow-2xs transition';
+                tabLogin.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
+            } else {
+                document.getElementById('authModalTitle').textContent = 'Verify Your Email';
+                document.getElementById('authModalSubtitle').textContent = 'Enter the 6-digit verification code';
+                document.getElementById('otpEmailDisplay').textContent = pendingOtpEmail;
+                document.getElementById('otpCodeInput').value = '';
+            }
+        }
+
+        document.getElementById('openAuthBtn').addEventListener('click', () => openAuthModal('login'));
+        document.getElementById('tabLoginBtn').addEventListener('click', () => { clearAuthAlerts(); showAuthMode('login'); });
+        document.getElementById('tabRegisterBtn').addEventListener('click', () => { clearAuthAlerts(); showAuthMode('register'); });
+        document.getElementById('backToAuthBtn').addEventListener('click', () => { clearAuthAlerts(); showAuthMode('register'); });
+
+        // Login submit
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearAuthAlerts();
+            const btn = document.getElementById('loginSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('loginEmail').value.trim(),
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    if (data.code === 'EMAIL_NOT_VERIFIED') {
+                        pendingOtpEmail = data.email;
+                        showAuthMode('otp');
+                        showAuthInfo('Your email is not verified yet. Enter your OTP or click Resend OTP.');
+                        return;
+                    }
+                    throw new Error(data.error || 'Login failed');
+                }
+                setAuthenticatedUser(data.token, data.user);
+                closeAuthModal();
+                showToast('Welcome back, ' + data.user.fullName + '!');
+            } catch (err) {
+                showAuthError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            }
+        });
+
+        // Register submit (triggers Email OTP)
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearAuthAlerts();
+            const btn = document.getElementById('registerSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sending OTP...';
+            try {
+                const email = document.getElementById('regEmail').value.trim();
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fullName: document.getElementById('regName').value.trim(),
+                        email,
+                        password: document.getElementById('regPassword').value
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Registration failed');
+                pendingOtpEmail = data.email || email;
+                showAuthMode('otp');
+                showAuthInfo(data.devOtp
+                    ? `${data.message} Dev OTP: ${data.devOtp}`
+                    : data.message);
+            } catch (err) {
+                showAuthError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Verification OTP';
+            }
+        });
+
+        // Verify Email OTP submit
+        document.getElementById('otpForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearAuthAlerts();
+            const btn = document.getElementById('verifyOtpBtn');
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+            try {
+                const res = await fetch('/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: pendingOtpEmail,
+                        otp: document.getElementById('otpCodeInput').value.trim()
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'OTP verification failed');
+                setAuthenticatedUser(data.token, data.user);
+                closeAuthModal();
+                showToast('Email verified! Welcome, ' + data.user.fullName + '!');
+            } catch (err) {
+                showAuthError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Verify Email & Sign In';
+            }
+        });
+
+        // Resend OTP
+        document.getElementById('resendOtpBtn').addEventListener('click', async () => {
+            clearAuthAlerts();
+            try {
+                const res = await fetch('/api/auth/resend-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: pendingOtpEmail })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Could not resend OTP');
+                showAuthInfo(data.devOtp ? `${data.message} Dev OTP: ${data.devOtp}` : data.message);
+            } catch (err) {
+                showAuthError(err.message);
+            }
+        });
+
+        // Save profile preferences
+        document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+            if (!authToken) return;
+            try {
+                const res = await fetch('/api/auth/profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({
+                        fullName: document.getElementById('settingsFullName').value.trim(),
+                        defaultSummaryFormat: defaultFormatSelect.value
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+                setAuthenticatedUser(authToken, data.user);
+                showToast('Profile & preferences saved!');
+            } catch (err) {
+                showToast(err.message);
+            }
+        });
+
+        // Mobile sidebar toggles
+        document.getElementById('openSidebarBtn').addEventListener('click', () => {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarBackdrop.classList.remove('hidden');
+        });
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            sidebarBackdrop.classList.add('hidden');
+        }
+        document.getElementById('closeSidebarBtn').addEventListener('click', closeSidebar);
+        sidebarBackdrop.addEventListener('click', closeSidebar);
+
+        // Sidebar view switching
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchView(btn.getAttribute('data-view'));
+                closeSidebar();
+            });
+        });
+
+        function switchView(viewName) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                const active = item.getAttribute('data-view') === viewName;
+                if (active) {
+                    item.classList.add('brand-gradient', 'text-white', 'shadow-md', 'shadow-indigo-200/80', 'font-semibold');
+                    item.classList.remove('text-slate-600', 'hover:bg-slate-100/80');
+                } else {
+                    item.classList.remove('brand-gradient', 'text-white', 'shadow-md', 'shadow-indigo-200/80', 'font-semibold');
+                    item.classList.add('text-slate-600', 'hover:bg-slate-100/80');
+                }
+            });
+
+            ['home', 'history', 'saved', 'settings'].forEach(v => {
+                document.getElementById('view-' + v).classList.toggle('hidden', v !== viewName);
+            });
+
+            if (viewName === 'history') renderStoredList('summary_history', 'historyList', 'No summarized documents yet.');
+            if (viewName === 'saved') renderStoredList('saved_summaries', 'savedList', 'No saved summaries yet. Click Save on any summary result.');
+        }
+
+        // Format selector
+        function setSummaryFormat(type) {
+            selectedSummaryType = type;
+            document.querySelectorAll('.type-btn').forEach(b => {
+                const active = b.getAttribute('data-type') === type;
+                if (active) {
+                    b.className = 'type-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-xs transition';
+                } else {
+                    b.className = 'type-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition';
+                }
+            });
+            if (lastResult && !resultsWrapper.classList.contains('hidden')) {
+                applySummaryDisplayFormat(type);
+            }
+        }
+
+        function applySummaryDisplayFormat(type) {
+            const inlineBullets = document.getElementById('inlineBulletsSection');
+            const hasBullets = lastResult && lastResult.bulletPoints && lastResult.bulletPoints.length > 0;
+            if (type === 'bullets') {
+                inlineBullets.classList.add('hidden');
+                switchResultTab('bullets');
+            } else if (type === 'both') {
+                inlineBullets.classList.toggle('hidden', !hasBullets);
+                switchResultTab('summary');
+            } else {
+                inlineBullets.classList.add('hidden');
+                switchResultTab('summary');
+            }
+        }
+
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', () => setSummaryFormat(btn.getAttribute('data-type')));
+        });
+
+        defaultFormatSelect.addEventListener('change', (e) => {
+            localStorage.setItem('default_summary_type', e.target.value);
+            setSummaryFormat(e.target.value);
+            showToast('Default format updated');
+        });
+
+        // Drag and drop handlers
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('drag-active');
+            }, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-active');
+            }, false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files.length > 0) handleFileSelected(e.dataTransfer.files[0]);
+        });
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFileSelected(e.target.files[0]);
+        });
+
+        function formatFileSize(bytes) {
+            return (bytes / 1024 > 1024)
+                ? (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+                : (bytes / 1024).toFixed(1) + ' KB';
+        }
+
+        function handleFileSelected(file) {
+            hideError();
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showError('Please select a valid .pdf file.');
+                return;
+            }
+            if (file.size > 50 * 1024 * 1024) {
+                showError('File size exceeds 50 MB. Please upload a smaller PDF.');
+                return;
+            }
+            selectedFile = file;
+            fileNameEl.textContent = file.name;
+            fileSizeEl.textContent = formatFileSize(file.size);
+            filePlaceholder.classList.add('hidden');
+            fileInfo.classList.remove('hidden');
+            summarizeBtn.disabled = false;
+
+            // Enable Chat with PDF immediately upon upload & pre-extract text
+            chatContextText = '';
+            chatDocName = file.name;
+            chatHistory = [];
+            document.getElementById('chatActiveFileBadge').textContent = file.name;
+            document.getElementById('chatDocSubtitle').textContent = `${file.name} (${formatFileSize(file.size)})`;
+            updateChatAvailability();
+            extractFileForChat(file, false);
+        }
+
+        removeFileBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+            filePlaceholder.classList.remove('hidden');
+            summarizeBtn.disabled = true;
+            if (!lastResult || resultsWrapper.classList.contains('hidden')) {
+                chatContextText = '';
+                chatDocName = '';
+                chatHistory = [];
+                document.getElementById('chatActiveFileBadge').textContent = 'No PDF loaded';
+                document.getElementById('chatDocSubtitle').textContent = 'Upload or summarize a PDF to start chatting';
+            }
+            updateChatAvailability();
+        });
+
+        function showError(msg) {
+            errorMessage.textContent = msg;
+            errorAlert.classList.remove('hidden');
+        }
+        function hideError() {
+            errorAlert.classList.add('hidden');
+            errorMessage.textContent = '';
+        }
+
+        // Summarize submission
+        summarizeBtn.addEventListener('click', () => runSummarization());
+
+        async function runSummarization(overrideType) {
+            if (!selectedFile) return;
+            const typeToUse = overrideType || selectedSummaryType;
+            if (overrideType) setSummaryFormat(overrideType);
+
+            hideError();
+            resultsWrapper.classList.add('hidden');
+            processingCard.classList.remove('hidden');
+            summarizeBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('summaryType', typeToUse);
+
+            try {
+                const response = await fetch('/api/summarize', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: formData
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Server returned an error status (' + response.status + ')');
+                }
+
+                data.summaryType = typeToUse;
+                data.savedAt = data.createdAt || new Date().toISOString();
+                if (selectedFile) {
+                    fileSizeEl.textContent = formatFileSize(selectedFile.size) + ' • ' + data.totalPages + ' Page' + (data.totalPages > 1 ? 's' : '');
+                }
+
+                lastResult = data;
+                if (authToken) {
+                    refreshServerBadges();
+                    document.getElementById('notifDot').classList.remove('hidden');
+                } else {
+                    saveToHistory(data);
+                }
+                renderResults(data, typeToUse);
+            } catch (err) {
+                showError(err.message || 'An unexpected error occurred while communicating with the server.');
+            } finally {
+                processingCard.classList.add('hidden');
+                summarizeBtn.disabled = false;
+            }
+        }
+
+        window.resummarizeWith = function(type) {
+            if (selectedFile) {
+                runSummarization(type);
+            } else {
+                showToast('Upload the PDF again to re-generate with ' + type + ' format.');
+            }
+        };
+
+        function renderResults(data, typeUsed) {
+            document.getElementById('resDocName').textContent = data.fileName;
+            const pagesText = data.totalPages + ' Page' + (data.totalPages > 1 ? 's' : '');
+            const wordsText = data.wordCount.toLocaleString() + ' Words';
+            const chunksText = data.chunksProcessed + ' Chunk' + (data.chunksProcessed > 1 ? 's' : '');
+            const timeText = (data.processingTimeMs / 1000).toFixed(1) + 's';
+
+            document.getElementById('metaPages').textContent = pagesText;
+            document.getElementById('metaWords').textContent = wordsText;
+            document.getElementById('metaChunks').textContent = chunksText;
+            document.getElementById('metaTime').textContent = timeText;
+
+            // Right insights card
+            document.getElementById('insightPages').textContent = data.totalPages;
+            document.getElementById('insightWords').textContent = data.wordCount.toLocaleString();
+            document.getElementById('insightChunks').textContent = data.chunksProcessed;
+            document.getElementById('insightTime').textContent = (data.processingTimeMs / 1000).toFixed(1) + ' seconds';
+
+            // Paragraph
+            const paraEl = document.getElementById('paragraphText');
+            const noParaEl = document.getElementById('noParaNotice');
+            if (data.paragraphSummary && data.paragraphSummary.trim()) {
+                paraEl.textContent = data.paragraphSummary;
+                paraEl.classList.remove('hidden');
+                noParaEl.classList.add('hidden');
+            } else {
+                paraEl.textContent = '';
+                paraEl.classList.add('hidden');
+                noParaEl.classList.remove('hidden');
+            }
+
+            // Bullets
+            const bulletsList = document.getElementById('bulletsList');
+            const inlineBulletsList = document.getElementById('inlineBulletsList');
+            const noBulletsEl = document.getElementById('noBulletsNotice');
+            if (data.bulletPoints && data.bulletPoints.length > 0) {
+                renderBulletItems(bulletsList, data.bulletPoints);
+                renderBulletItems(inlineBulletsList, data.bulletPoints);
+                bulletsList.classList.remove('hidden');
+                noBulletsEl.classList.add('hidden');
+            } else {
+                bulletsList.innerHTML = '';
+                inlineBulletsList.innerHTML = '';
+                bulletsList.classList.add('hidden');
+                noBulletsEl.classList.remove('hidden');
+            }
+
+            // Populate Topics & Entities from generated text
+            const combinedText = [data.paragraphSummary || '', ...(data.bulletPoints || [])].join(' ');
+            renderTopics(combinedText);
+            renderEntities(combinedText);
+
+            // Reset or restore persisted Q&A tab
+            const qaBtn = document.getElementById('qaTabBtn');
+            const qaBox = document.getElementById('qaContainer');
+            qaBox.innerHTML = '';
+            if (data.qnaList && data.qnaList.length > 0) {
+                data.qnaList.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'p-3.5 rounded-xl bg-white border border-slate-200/80 whitespace-pre-line leading-relaxed text-xs sm:text-sm';
+                    card.textContent = `Q: ${item.question}\nA: ${item.answer}`;
+                    qaBox.appendChild(card);
+                });
+                qaBtn.classList.remove('hidden');
+            } else {
+                qaBtn.classList.add('hidden');
+            }
+
+            // Apply requested display format ('paragraph', 'bullets', or 'both')
+            applySummaryDisplayFormat(typeUsed || selectedSummaryType);
+            updateSaveButtonState();
+            syncChatContextFromResult(data);
+
+            resultsWrapper.classList.remove('hidden');
+            lucide.createIcons();
+            resultsWrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function renderBulletItems(listEl, points) {
+            listEl.innerHTML = '';
+            points.forEach(point => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-200/70 text-sm text-slate-700';
+                li.innerHTML = `
+                    <span class="flex-shrink-0 w-5 h-5 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center mt-0.5">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <span class="flex-1 leading-relaxed">${escapeHtml(point)}</span>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        // Result Tabs
+        document.querySelectorAll('.res-tab').forEach(tabBtn => {
+            tabBtn.addEventListener('click', () => switchResultTab(tabBtn.getAttribute('data-tab')));
+        });
+
+        function switchResultTab(tabName) {
+            currentTab = tabName;
+            document.querySelectorAll('.res-tab').forEach(btn => {
+                const active = btn.getAttribute('data-tab') === tabName;
+                if (active) {
+                    btn.classList.add('brand-gradient', 'text-white', 'shadow-sm', 'font-semibold');
+                    btn.classList.remove('text-slate-600', 'hover:bg-slate-100', 'font-medium');
+                } else {
+                    btn.classList.remove('brand-gradient', 'text-white', 'shadow-sm', 'font-semibold');
+                    btn.classList.add('text-slate-600', 'hover:bg-slate-100', 'font-medium');
+                }
+            });
+            document.querySelectorAll('.res-panel').forEach(panel => {
+                panel.classList.toggle('hidden', panel.id !== 'panel-' + tabName);
+            });
+        }
+
+        // Extract Topics & Entities locally
+        function renderTopics(text) {
+            const container = document.getElementById('topicsContainer');
+            container.innerHTML = '';
+            const stop = new Set(['about','above','after','again','against','almost','alone','along','already','also','although','always','among','another','around','because','before','being','below','between','both','could','document','documents','during','each','either','every','following','found','from','further','have','having','here','however','important','including','into','itself','just','like','more','most','much','must','neither','never','only','other','others','over','paragraph','provides','reading','same','several','should','since','some','such','summary','system','than','that','their','them','then','there','these','they','this','those','through','thus','under','until','using','very','well','were','what','when','where','which','while','with','within','without','would']);
+            const freq = {};
+            (text.toLowerCase().match(/\b[a-z][a-z-]{3,}\b/g) || []).forEach(w => {
+                if (!stop.has(w)) freq[w] = (freq[w] || 0) + 1;
+            });
+            const top = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 12);
+            if (top.length === 0) {
+                container.innerHTML = '<span class="text-xs text-slate-400">No topics extracted.</span>';
+                return;
+            }
+            top.forEach(([word, count]) => {
+                const chip = document.createElement('span');
+                chip.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-indigo-100 text-xs font-medium text-indigo-700 shadow-2xs';
+                chip.textContent = word.charAt(0).toUpperCase() + word.slice(1) + ' (' + count + ')';
+                container.appendChild(chip);
+            });
+        }
+
+        function renderEntities(text) {
+            const container = document.getElementById('entitiesContainer');
+            container.innerHTML = '';
+            const matches = text.match(/\b([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+){0,2}|[A-Z]{2,})\b/g) || [];
+            const ignore = new Set(['The','This','That','These','Those','It','Its','In','On','For','And','But','With','From','Key','Summary']);
+            const unique = [...new Set(matches.map(m => m.trim()).filter(m => m.length >= 2 && !ignore.has(m)))].slice(0, 18);
+            if (unique.length === 0) {
+                container.innerHTML = '<span class="text-xs text-slate-400">No named entities detected.</span>';
+                return;
+            }
+            unique.forEach(entity => {
+                const chip = document.createElement('span');
+                chip.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-700';
+                chip.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>${escapeHtml(entity)}`;
+                container.appendChild(chip);
+            });
+        }
+
+        // Quick Actions
+        document.getElementById('qaActionBullets').addEventListener('click', () => {
+            if (!lastResult) return;
+            if (lastResult.bulletPoints && lastResult.bulletPoints.length > 0) {
+                switchResultTab('bullets');
+            } else {
+                resummarizeWith('both');
+            }
+        });
+
+        document.getElementById('qaActionTopics').addEventListener('click', () => {
+            if (lastResult) switchResultTab('topics');
+        });
+
+        document.getElementById('qaActionGenerateQA').addEventListener('click', async () => {
+            if (!lastResult) return;
+            const summaryText = lastResult.paragraphSummary || (lastResult.bulletPoints || []).join(' ');
+            if (!summaryText.trim()) {
+                showToast('No summary content available for Q&A.');
+                return;
+            }
+            const label = document.getElementById('qaActionLabel');
+            label.textContent = 'Generating Q&A...';
+            try {
+                const res = await fetch('/api/qa', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({
+                        summary: summaryText,
+                        summaryId: lastResult.id || null
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to generate Q&A');
+
+                const qaContainer = document.getElementById('qaContainer');
+                qaContainer.innerHTML = '';
+                const blocks = data.qa.split(/\n(?=Q:)/i).filter(b => b.trim());
+                if (blocks.length > 0) {
+                    blocks.forEach(block => {
+                        const card = document.createElement('div');
+                        card.className = 'p-3.5 rounded-xl bg-white border border-slate-200/80 whitespace-pre-line leading-relaxed text-xs sm:text-sm';
+                        card.textContent = block.trim();
+                        qaContainer.appendChild(card);
+                    });
+                } else {
+                    qaContainer.textContent = data.qa;
+                }
+                document.getElementById('qaTabBtn').classList.remove('hidden');
+                switchResultTab('qa');
+                lucide.createIcons();
+            } catch (err) {
+                showToast(err.message || 'Could not generate Q&A');
+            } finally {
+                label.textContent = 'Generate Q&A';
+            }
+        });
+
+        // Copy / Download / Share / TTS
+        document.getElementById('copyCurrentTabBtn').addEventListener('click', () => {
+            if (!lastResult) return;
+            let text = '';
+            if (currentTab === 'summary') {
+                text = lastResult.paragraphSummary || '';
+                if (selectedSummaryType === 'both' && lastResult.bulletPoints && lastResult.bulletPoints.length > 0) {
+                    text += '\n\n' + lastResult.bulletPoints.map(b => '• ' + b).join('\n');
+                }
+            }
+            else if (currentTab === 'bullets') text = (lastResult.bulletPoints || []).map(b => '• ' + b).join('\n');
+            else if (currentTab === 'qa') text = document.getElementById('qaContainer').innerText;
+            else text = document.getElementById('panel-' + currentTab).innerText;
+            if (!text.trim()) return;
+            navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+        });
+
+        document.getElementById('copyAllBtn').addEventListener('click', () => {
+            if (!lastResult) return;
+            let fullText = `# Summary: ${lastResult.fileName}\n\n`;
+            if (lastResult.paragraphSummary) fullText += `## Executive Summary\n${lastResult.paragraphSummary}\n\n`;
+            if (lastResult.bulletPoints && lastResult.bulletPoints.length > 0) {
+                fullText += `## Key Takeaways\n` + lastResult.bulletPoints.map(b => `- ${b}`).join('\n');
+            }
+            navigator.clipboard.writeText(fullText).then(() => showToast('Full summary copied!'));
+        });
+
+        document.getElementById('downloadMdBtn').addEventListener('click', () => {
+            if (!lastResult) return;
+            let content = `# Document Summary: ${lastResult.fileName}\n\n`;
+            content += `**Document Details:**\n- Pages: ${lastResult.totalPages}\n- Words: ${lastResult.wordCount}\n\n`;
+            if (lastResult.paragraphSummary) content += `## Executive Summary\n${lastResult.paragraphSummary}\n\n`;
+            if (lastResult.bulletPoints && lastResult.bulletPoints.length > 0) {
+                content += `## Key Takeaways\n`;
+                lastResult.bulletPoints.forEach(pt => content += `- ${pt}\n`);
+            }
+            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${lastResult.fileName.replace(/\.pdf$/i, '')}_summary.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+            if (!lastResult) return;
+            const shareText = `${lastResult.fileName}\n\n${lastResult.paragraphSummary || (lastResult.bulletPoints || []).join('\n')}`;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: `Summary: ${lastResult.fileName}`, text: shareText });
+                    return;
+                } catch (_) {}
+            }
+            navigator.clipboard.writeText(shareText).then(() => showToast('Summary copied for sharing!'));
+        });
+
+        document.getElementById('speakBtn').addEventListener('click', () => {
+            if (!('speechSynthesis' in window)) {
+                showToast('Text-to-speech is not supported in your browser.');
+                return;
+            }
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                document.getElementById('speakBtn').classList.remove('text-indigo-600');
+                return;
+            }
+            const text = (lastResult && lastResult.paragraphSummary) || (lastResult && (lastResult.bulletPoints || []).join('. ')) || '';
+            if (!text) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.onend = utterance.onerror = () => {
+                isSpeaking = false;
+                document.getElementById('speakBtn').classList.remove('text-indigo-600');
+            };
+            window.speechSynthesis.speak(utterance);
+            isSpeaking = true;
+            document.getElementById('speakBtn').classList.add('text-indigo-600');
+        });
+
+        // History & Saved Summaries (Neon PostgreSQL when signed in, localStorage fallback for guests)
+        function getStored(key) {
+            try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+        }
+        function setStored(key, arr) {
+            localStorage.setItem(key, JSON.stringify(arr));
+            updateSidebarBadges();
+        }
+        function saveToHistory(data) {
+            const list = getStored('summary_history').filter(x => !(x.fileName === data.fileName && x.savedAt === data.savedAt));
+            list.unshift(data);
+            setStored('summary_history', list.slice(0, 20));
+            document.getElementById('notifDot').classList.remove('hidden');
+        }
+        function isCurrentlySaved() {
+            if (!lastResult) return false;
+            if (authToken && lastResult.id) return Boolean(lastResult.saved);
+            return getStored('saved_summaries').some(x => x.fileName === lastResult.fileName && x.paragraphSummary === lastResult.paragraphSummary);
+        }
+        function updateSaveButtonState() {
+            const saved = isCurrentlySaved();
+            document.getElementById('saveBookmarkLabel').textContent = saved ? 'Saved' : 'Save';
+            document.getElementById('saveBookmarkBtn').classList.toggle('text-indigo-700', saved);
+            document.getElementById('saveBookmarkBtn').classList.toggle('border-indigo-200', saved);
+        }
+        document.getElementById('saveBookmarkBtn').addEventListener('click', async () => {
+            if (!lastResult) return;
+            if (authToken && lastResult.id) {
+                try {
+                    const res = await fetch(`/api/summaries/${lastResult.id}/save`, {
+                        method: 'PATCH',
+                        headers: authHeaders()
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Could not update bookmark');
+                    lastResult.saved = data.saved;
+                    updateSaveButtonState();
+                    refreshServerBadges();
+                    showToast(data.saved ? 'Saved to Saved Summaries!' : 'Removed from Saved Summaries');
+                } catch (err) {
+                    showToast(err.message);
+                }
+                return;
+            }
+            let saved = getStored('saved_summaries');
+            if (isCurrentlySaved()) {
+                saved = saved.filter(x => !(x.fileName === lastResult.fileName && x.paragraphSummary === lastResult.paragraphSummary));
+                showToast('Removed from Saved Summaries');
+            } else {
+                saved.unshift(lastResult);
+                showToast('Saved to Saved Summaries!');
+            }
+            setStored('saved_summaries', saved.slice(0, 30));
+            updateSaveButtonState();
+        });
+
+        async function refreshServerBadges() {
+            if (!authToken) return;
+            try {
+                const [hRes, sRes] = await Promise.all([
+                    fetch('/api/summaries/history', { headers: authHeaders() }),
+                    fetch('/api/summaries/saved', { headers: authHeaders() })
+                ]);
+                if (hRes.ok && sRes.ok) {
+                    const [hList, sList] = await Promise.all([hRes.json(), sRes.json()]);
+                    setBadgeCounts(hList.length, sList.length);
+                }
+            } catch {}
+        }
+
+        function setBadgeCounts(h, s) {
+            const hb = document.getElementById('historyCountBadge');
+            const sb = document.getElementById('savedCountBadge');
+            hb.textContent = h;
+            hb.classList.toggle('hidden', h === 0);
+            sb.textContent = s;
+            sb.classList.toggle('hidden', s === 0);
+        }
+
+        function updateSidebarBadges() {
+            if (authToken) {
+                refreshServerBadges();
+                return;
+            }
+            setBadgeCounts(getStored('summary_history').length, getStored('saved_summaries').length);
+        }
+
+        async function renderStoredList(storageKey, containerId, emptyMsg) {
+            const container = document.getElementById(containerId);
+            if (authToken) {
+                container.innerHTML = '<p class="text-xs text-slate-400 py-8 text-center">Loading from database...</p>';
+                const endpoint = storageKey === 'saved_summaries' ? '/api/summaries/saved' : '/api/summaries/history';
+                try {
+                    const res = await fetch(endpoint, { headers: authHeaders() });
+                    if (!res.ok) throw new Error('Failed to load');
+                    const items = await res.json();
+                    renderListItems(container, items, storageKey, containerId, emptyMsg, true);
+                } catch {
+                    container.innerHTML = '<p class="text-xs text-rose-500 py-8 text-center">Could not load summaries from database.</p>';
+                }
+                return;
+            }
+            renderListItems(container, getStored(storageKey), storageKey, containerId, emptyMsg, false);
+        }
+
+        function renderListItems(container, items, storageKey, containerId, emptyMsg, fromDb) {
+            container.innerHTML = '';
+            if (!items || items.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-8 text-center">${emptyMsg}</p>`;
+                return;
+            }
+            items.forEach((item, idx) => {
+                const row = document.createElement('div');
+                row.className = 'p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3 hover:border-indigo-200 transition';
+                row.innerHTML = `
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-slate-900 truncate">${escapeHtml(item.fileName)}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">${item.totalPages} pages &bull; ${item.wordCount.toLocaleString()} words</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="open-stored px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition">Open</button>
+                        <button type="button" class="del-stored px-2.5 py-1.5 rounded-lg text-rose-500 hover:bg-rose-50 text-xs transition">Remove</button>
+                    </div>
+                `;
+                row.querySelector('.open-stored').addEventListener('click', async () => {
+                    let fullItem = item;
+                    if (fromDb && item.id) {
+                        try {
+                            const res = await fetch(`/api/summaries/${item.id}`, { headers: authHeaders() });
+                            if (res.ok) fullItem = await res.json();
+                        } catch {}
+                    }
+                    lastResult = fullItem;
+                    switchView('home');
+                    renderResults(fullItem, fullItem.summaryType || 'paragraph');
+                });
+                row.querySelector('.del-stored').addEventListener('click', async () => {
+                    if (fromDb && item.id) {
+                        await fetch(`/api/summaries/${item.id}`, { method: 'DELETE', headers: authHeaders() });
+                        refreshServerBadges();
+                    } else {
+                        const updated = getStored(storageKey).filter((_, i) => i !== idx);
+                        setStored(storageKey, updated);
+                    }
+                    renderStoredList(storageKey, containerId, emptyMsg);
+                });
+                container.appendChild(row);
+            });
+        }
+
+        document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
+            if (authToken) {
+                await fetch('/api/summaries/history', { method: 'DELETE', headers: authHeaders() });
+                refreshServerBadges();
+            } else {
+                setStored('summary_history', []);
+            }
+            renderStoredList('summary_history', 'historyList', 'No summarized documents yet.');
+            showToast('History cleared');
+        });
+
+        document.getElementById('notifBtn').addEventListener('click', () => {
+            document.getElementById('notifDot').classList.add('hidden');
+            const count = getStored('summary_history').length;
+            showToast(count > 0 ? `${count} document summary(s) in History.` : 'No new notifications.');
+        });
+
+        document.getElementById('upgradeBtn').addEventListener('click', () => {
+            showToast('All features are enabled on your TRIOS AI account!');
+        });
+
+        // ─── AI Chat with PDF Drawer ──────────────────────────────────────────
+        function updateChatAvailability() {
+            const hasDoc = Boolean(selectedFile || (chatContextText && chatContextText.trim()));
+            openChatSidebarBtn.disabled = !hasDoc;
+            openChatSidebarBtn.title = hasDoc ? 'Chat with PDF using AI' : 'Upload a PDF document first';
+            if (hasDoc) {
+                openChatSidebarBtn.className = 'w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-indigo-50/70 hover:text-indigo-700 transition';
+            } else {
+                openChatSidebarBtn.className = 'w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-slate-400 opacity-50 cursor-not-allowed transition';
+            }
+            floatingAiChatBtn.classList.toggle('hidden', !hasDoc);
+        }
+
+        function openChatDrawer() {
+            if (!selectedFile && !chatContextText.trim()) {
+                showToast('Please upload a PDF document first.');
+                return;
+            }
+            if (selectedFile && !chatContextText.trim() && !chatExtractingPromise) {
+                extractFileForChat(selectedFile, false);
+            }
+            chatDrawer.classList.remove('translate-x-full');
+            chatBackdrop.classList.remove('hidden');
+            closeSidebar();
+            lucide.createIcons();
+            setTimeout(() => chatInputEl.focus(), 200);
+        }
+
+        function closeChatDrawer() {
+            chatDrawer.classList.add('translate-x-full');
+            chatBackdrop.classList.add('hidden');
+        }
+
+        openChatSidebarBtn.addEventListener('click', openChatDrawer);
+        floatingAiChatBtn.addEventListener('click', openChatDrawer);
+        document.getElementById('closeChatBtn').addEventListener('click', closeChatDrawer);
+        chatBackdrop.addEventListener('click', closeChatDrawer);
+
+        function syncChatContextFromResult(data) {
+            if (!data) return;
+            const summaryFallback = [data.paragraphSummary || '', ...(data.bulletPoints || [])].join('\n');
+            const ctx = (data.documentText && data.documentText.trim()) ? data.documentText : summaryFallback;
+            if (!ctx.trim()) return;
+            chatContextText = ctx;
+            chatDocName = data.fileName || 'Document.pdf';
+            document.getElementById('chatActiveFileBadge').textContent = chatDocName;
+            document.getElementById('chatDocSubtitle').textContent = `${chatDocName} (${data.totalPages || '?'} pages)`;
+            updateChatAvailability();
+        }
+
+        function extractFileForChat(file, announce) {
+            const formData = new FormData();
+            formData.append('file', file);
+            document.getElementById('chatActiveFileBadge').textContent = 'Extracting PDF...';
+            chatExtractingPromise = (async () => {
+                try {
+                    const res = await fetch('/api/extract', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Could not extract PDF');
+                    chatContextText = data.documentText;
+                    chatDocName = data.fileName;
+                    document.getElementById('chatActiveFileBadge').textContent = chatDocName;
+                    document.getElementById('chatDocSubtitle').textContent = `${chatDocName} (${data.totalPages} pages • ${data.wordCount.toLocaleString()} words)`;
+                    updateChatAvailability();
+                    if (announce) {
+                        chatHistory = [];
+                        appendChatBubble('assistant', `Loaded ${data.fileName} (${data.totalPages} pages). Ask me anything about this document!`);
+                    }
+                } catch (err) {
+                    document.getElementById('chatActiveFileBadge').textContent = chatDocName || 'No PDF loaded';
+                    if (announce) showToast(err.message);
+                } finally {
+                    chatExtractingPromise = null;
+                }
+            })();
+            return chatExtractingPromise;
+        }
+
+        document.getElementById('chatPdfInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            await extractFileForChat(file, true);
+            e.target.value = '';
+        });
+
+        updateChatAvailability();
+
+        document.getElementById('chatClearBtn').addEventListener('click', () => {
+            chatHistory = [];
+            chatMessagesEl.innerHTML = '';
+            appendChatBubble('assistant', chatDocName
+                ? `Started a fresh chat for ${chatDocName}. Ask your question below!`
+                : 'Chat cleared. Upload or summarize a PDF to begin.');
+        });
+
+        document.querySelectorAll('.chat-quick-prompt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                chatInputEl.value = btn.textContent;
+                document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+            });
+        });
+
+        function appendChatBubble(role, text) {
+            const wrapper = document.createElement('div');
+            wrapper.className = role === 'user' ? 'flex justify-end' : 'flex items-start gap-2';
+            if (role === 'user') {
+                wrapper.innerHTML = `<div class="max-w-[85%] px-3.5 py-2.5 rounded-2xl rounded-br-sm brand-gradient text-white text-xs sm:text-sm leading-relaxed shadow-xs whitespace-pre-wrap">${escapeHtml(text)}</div>`;
+            } else {
+                wrapper.innerHTML = `
+                    <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5">
+                        <i data-lucide="bot" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <div class="max-w-[85%] px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-white border border-slate-200/90 text-slate-700 text-xs sm:text-sm leading-relaxed shadow-2xs whitespace-pre-wrap">${escapeHtml(text)}</div>
+                `;
+            }
+            chatMessagesEl.appendChild(wrapper);
+            lucide.createIcons();
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            return wrapper;
+        }
+
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const question = chatInputEl.value.trim();
+            if (!question) return;
+            if (chatExtractingPromise) {
+                await chatExtractingPromise;
+            } else if (selectedFile && !chatContextText.trim()) {
+                await extractFileForChat(selectedFile, false);
+            }
+            if (!chatContextText.trim()) {
+                showToast('Please load or summarize a PDF first.');
+                return;
+            }
+
+            chatInputEl.value = '';
+            appendChatBubble('user', question);
+            const typingEl = appendChatBubble('assistant', 'Thinking...');
+            chatSendBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({
+                        context: chatContextText,
+                        message: question,
+                        history: chatHistory
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Chat request failed');
+
+                typingEl.remove();
+                appendChatBubble('assistant', data.reply);
+                chatHistory.push({ role: 'user', content: question });
+                chatHistory.push({ role: 'assistant', content: data.reply });
+            } catch (err) {
+                typingEl.remove();
+                appendChatBubble('assistant', 'Error: ' + (err.message || 'Could not reach AI assistant.'));
+            } finally {
+                chatSendBtn.disabled = false;
+                chatInputEl.focus();
+            }
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-xl z-50 transition duration-200';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 250);
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
