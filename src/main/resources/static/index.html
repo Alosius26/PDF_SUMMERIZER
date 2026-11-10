@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI PDF Summarizer</title>
-    <link rel="icon" type="image/png" href="/favicon.png?v=1">
-    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=1">
-    <link rel="apple-touch-icon" href="/favicon.png?v=1">
+    <link rel="icon" type="image/png" href="favicon.png?v=1">
+    <link rel="shortcut icon" type="image/png" href="favicon.png?v=1">
+    <link rel="apple-touch-icon" href="favicon.png?v=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -927,6 +927,21 @@
         function authHeaders() {
             return authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
         }
+
+        const APP_BASE = window.location.pathname.startsWith('/project') ? '/project' : '';
+        function apiUrl(path) {
+            return APP_BASE + path;
+        }
+        document.querySelectorAll('link[rel*="icon"]').forEach(el => {
+            el.href = apiUrl('/favicon.png?v=1');
+        });
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+            if (typeof input === 'string' && input.startsWith('/api/')) {
+                return nativeFetch(apiUrl(input), init);
+            }
+            return nativeFetch(input, init);
+        };
 
         // Clean legacy tokens
         localStorage.removeItem('hf_api_key');
